@@ -1,13 +1,17 @@
-const { Plugin, Modal, ItemView, WorkspaceLeaf, TFile } = require('obsidian');
+const { Plugin, Modal, ItemView, WorkspaceLeaf, TFile, PluginSettingTab, Setting } = require('obsidian');
 const { exec } = require('child_process');
 
 const GEMINI_VIEW_TYPE = "gemini-cli-chat-view";
 const HISTORY_FILE_PATH = "Gemini History.md";
 
+const DEFAULT_SETTINGS = {
+    geminiPath: 'gemini'
+}
+
 class GeminiChatView extends ItemView {
-    constructor(leaf) {
+    constructor(leaf, plugin) {
         super(leaf);
-        this.historyContent = "";
+        this.plugin = plugin;
     }
 
     getViewType() { return GEMINI_VIEW_TYPE; }
@@ -24,7 +28,6 @@ class GeminiChatView extends ItemView {
 
         container.createEl('h3', { text: 'Gemini CLI Chat' });
 
-        // Oblast pro výstup
         this.outputEl = container.createEl('div', { cls: 'gemini-chat-output' });
         this.outputEl.style.flexGrow = '1';
         this.outputEl.style.overflowY = 'auto';
@@ -37,18 +40,17 @@ class GeminiChatView extends ItemView {
         this.outputEl.style.whiteSpace = 'pre-wrap';
         this.outputEl.textContent = "Připraven ke komunikaci...\n";
 
-        // Vstupní pole
         const inputContainer = container.createEl('div');
         inputContainer.style.display = 'flex';
-        inputContainer.style.flexDirection = 'column'; // Tlačítko pod textareou pro lepší místo
+        inputContainer.style.flexDirection = 'column';
         inputContainer.style.gap = '8px';
-        inputContainer.style.marginBottom = '25px'; // Bezpečnostní rezerva proti spodní liště Obsidianu
+        inputContainer.style.marginBottom = '25px';
 
         this.inputEl = inputContainer.createEl('textarea');
         this.inputEl.placeholder = 'Zadej příkaz... (Ctrl+Enter odeslat)';
         this.inputEl.style.width = '100%';
         this.inputEl.style.height = '80px';
-        this.inputEl.style.resize = 'vertical'; // Umožnit zvětšení uživatelem
+        this.inputEl.style.resize = 'vertical';
         this.inputEl.style.padding = '8px';
         this.inputEl.style.borderRadius = '4px';
         this.inputEl.style.border = '1px solid var(--background-modifier-border)';
@@ -74,13 +76,15 @@ class GeminiChatView extends ItemView {
         
         const loadingMsg = this.appendMessage('GEMINI', '⏳ Přemýšlím...');
 
-        const cmd = `gemini "${prompt.replace(/"/g, '\\"')}"`;
+        // Použití cesty z nastavení
+        const geminiBin = this.plugin.settings.geminiPath || 'gemini';
+        const cmd = `"${geminiBin}" "${prompt.replace(/"/g, '\\"')}"`;
         
         exec(cmd, async (error, stdout, stderr) => {
             loadingMsg.remove();
             let response = "";
             if (error) {
-                response = `❌ Chyba:\n${error.message}\n${stderr}`;
+                response = `❌ Chyba při spuštění (${geminiBin}):\n${error.message}\n${stderr}`;
             } else {
                 response = stdout || stderr || '✅ Hotovo.';
             }
@@ -112,13 +116,40 @@ class GeminiChatView extends ItemView {
     }
 }
 
+class GeminiSettingTab extends PluginSettingTab {
+    constructor(app, plugin) {
+        super(app, plugin);
+        this.plugin = plugin;
+    }
+
+    display() {
+        const { containerEl } = this;
+        containerEl.empty();
+        containerEl.createEl('h2', { text: 'Nastavení Gemini CLI Bridge' });
+
+        new Setting(containerEl)
+            .setName('Cesta k Gemini CLI')
+            .setDesc('Zadej absolutní cestu k binárce gemini (např. /usr/local/bin/gemini na Linuxu nebo plnou cestu na Windows). Pokud necháš "gemini", bude se hledat v systémové PATH.')
+            .addText(text => text
+                .setPlaceholder('gemini')
+                .setValue(this.plugin.settings.geminiPath)
+                .onChange(async (value) => {
+                    this.plugin.settings.geminiPath = value;
+                    await this.plugin.saveSettings();
+                }));
+    }
+}
+
 class GeminiCLIBridge extends Plugin {
     async onload() {
-        console.log('Načítám Gemini CLI Bridge v2.0');
+        console.log('Načítám Gemini CLI Bridge v2.1 (s nastavením)');
+        await this.loadSettings();
+
+        this.addSettingTab(new GeminiSettingTab(this.app, this));
 
         this.registerView(
             GEMINI_VIEW_TYPE,
-            (leaf) => new GeminiChatView(leaf)
+            (leaf) => new GeminiChatView(leaf, this)
         );
 
         this.addRibbonIcon('bot', 'Gemini Chat Panel', () => {
@@ -130,6 +161,14 @@ class GeminiCLIBridge extends Plugin {
             name: 'Open Gemini Chat Panel',
             callback: () => this.activateView(),
         });
+    }
+
+    async loadSettings() {
+        this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    }
+
+    async saveSettings() {
+        await this.saveData(this.settings);
     }
 
     async activateView() {
