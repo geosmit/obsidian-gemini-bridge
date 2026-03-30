@@ -40,14 +40,18 @@ class GeminiChatView extends ItemView {
         // Vstupní pole
         const inputContainer = container.createEl('div');
         inputContainer.style.display = 'flex';
-        inputContainer.style.gap = '5px';
+        inputContainer.style.flexDirection = 'column'; // Tlačítko pod textareou pro lepší místo
+        inputContainer.style.gap = '8px';
+        inputContainer.style.marginBottom = '25px'; // Bezpečnostní rezerva proti spodní liště Obsidianu
 
         this.inputEl = inputContainer.createEl('textarea');
-        this.inputEl.placeholder = 'Zadej příkaz... (Ctrl+Enter pro odeslání)';
-        this.inputEl.style.flexGrow = '1';
-        this.inputEl.style.height = '60px';
-        this.inputEl.style.resize = 'none';
-        this.inputEl.style.padding = '5px';
+        this.inputEl.placeholder = 'Zadej příkaz... (Ctrl+Enter odeslat)';
+        this.inputEl.style.width = '100%';
+        this.inputEl.style.height = '80px';
+        this.inputEl.style.resize = 'vertical'; // Umožnit zvětšení uživatelem
+        this.inputEl.style.padding = '8px';
+        this.inputEl.style.borderRadius = '4px';
+        this.inputEl.style.border = '1px solid var(--background-modifier-border)';
 
         this.inputEl.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
@@ -55,7 +59,9 @@ class GeminiChatView extends ItemView {
             }
         });
 
-        const sendBtn = inputContainer.createEl('button', { text: 'Odeslat' });
+        const sendBtn = inputContainer.createEl('button', { text: 'Odeslat dotaz' });
+        sendBtn.style.alignSelf = 'flex-end';
+        sendBtn.style.padding = '5px 15px';
         sendBtn.addEventListener('click', () => this.handleSend());
     }
 
