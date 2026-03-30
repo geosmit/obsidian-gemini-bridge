@@ -1,0 +1,9 @@
+{
+	"id": "gemini-cli-bridge",
+	"name": "Gemini CLI Bridge",
+	"version": "1.0.0",
+	"minAppVersion": "0.15.0",
+	"description": "Jednoduchý most pro komunikaci s Gemini CLI přímo z Obsidianu.",
+	"author": "Gemini CLI",
+	"isDesktopOnly": true
+}
